@@ -147,7 +147,7 @@ function compute(q, tags, wx, hol) {
       if (hol && hol.has(d.toISOString().slice(0, 10))) c = Math.min(100, Math.round(c * 1.12));
       const closed = isOpen ? !isOpen(d.getUTCDay(), h) : false;
       if (closed) c = 0;
-      return { hour: h, crowd: c, level: level(c), est_wait_minutes: waitMin(c), open: !closed };
+      return { hour: h, crowd: c, level: level(c), est_wait_minutes: waitMin(c), open: !closed, rain_pct: Number.isFinite(rain) ? rain : null };
     });
     const inMeal = h => meal === 'lunch' ? h >= 11 && h <= 15 : meal === 'dinner' ? h >= 17 && h <= 22 : (h >= 11 && h <= 15) || (h >= 17 && h <= 22);
     const cands = hours.filter(x => inMeal(x.hour) && x.open);

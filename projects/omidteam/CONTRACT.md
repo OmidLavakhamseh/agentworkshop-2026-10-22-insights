@@ -15,7 +15,7 @@
   "restaurant_id": "osm:node/123", "lat": 59.33, "lng": 18.06, "source": "heuristic-model",
   "days": [{
     "date": "2026-10-23",
-    "hours": [{ "hour": 12, "crowd": 78, "level": "high", "est_wait_minutes": 27 }],
+    "hours": [{ "hour": 12, "crowd": 78, "level": "high", "est_wait_minutes": 27, "open": true, "rain_pct": 20 }],
     "best_times": [{ "time": "11:00", "crowd": 30, "est_wait_minutes": 4 }],
     "busiest": { "time": "20:00", "crowd": 85 },
     "within_max_wait": true
@@ -28,6 +28,7 @@
 Also: `GET /t/omidteam/health`. Frontend widget: `/colony/omidteam/?id=...&from=...&to=...` (embeddable).
 
 Optional extras (all additive, failures fall back silently):
+- `hours[].rain_pct` (0-100, or null when no forecast): rain probability for that hour (additive field).
 - `time=HH:MM` (visit time): response gets `requested` {date, time, crowd, level, est_wait_minutes, open, verdict good|busy|closed, better_time} for the first day, else null.
 - Top-level `best_times` [{date, start, end, crowd, est_wait_min}] (one window per day) and `avg_wait_min`, for simple UIs. `max_wait_min` is accepted as an alias of `maxWaitMinutes`.
 - `country=SE` (ISO 2-letter): public holidays via Nager.Date raise crowd slightly.
