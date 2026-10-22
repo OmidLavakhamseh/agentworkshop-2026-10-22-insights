@@ -126,7 +126,8 @@ function compute(q, tags, wx, hol) {
   const to = parseDate(q.to) || from;
   const days = Math.round((to - from) / 86400000) + 1;
   if (days < 1 || days > 14) return { error: 'date range must be 1-14 days, from <= to' };
-  const maxWait = Number.isFinite(+q.maxWaitMinutes) && q.maxWaitMinutes !== '' && q.maxWaitMinutes != null ? +q.maxWaitMinutes : 15;
+  const mw = q.maxWaitMinutes != null && q.maxWaitMinutes !== '' ? q.maxWaitMinutes : q.max_wait_min;
+  const maxWait = mw != null && mw !== '' && Number.isFinite(+mw) ? +mw : 15;
   const isOpen = parseOpening(tags && tags.opening_hours);
   const amen = AMENITY_KIND[tags && tags.amenity];
   const meal = ['lunch', 'dinner'].includes(q.meal) ? q.meal : 'any';
@@ -171,7 +172,14 @@ function compute(q, tags, wx, hol) {
   }
   const lat = Number.isFinite(parseFloat(q.lat)) ? parseFloat(q.lat) : null;
   const lng = Number.isFinite(parseFloat(q.lng)) ? parseFloat(q.lng) : null;
-  return { restaurant_id: id, lat, lng, source: ['osm', wx && 'weather', hol && 'holidays'].filter(x => x !== null && x !== false && x !== undefined && (x === 'osm' ? tags : x)).concat('heuristic-model').join('+'), days: out };
+  const flat = out.filter(d => d.best_times.length).map(d => {
+    const t = d.best_times, hr = x => +x.time.slice(0, 2);
+    const waits = t.map(x => x.est_wait_minutes);
+    return { date: d.date, start: t[0].time, end: String(hr(t[t.length - 1]) + 1).padStart(2, '0') + ':00',
+      crowd: Math.round(t.reduce((a, x) => a + x.crowd, 0) / t.length), est_wait_min: Math.round(waits.reduce((a, x) => a + x, 0) / waits.length) };
+  });
+  const avg_wait_min = flat.length ? Math.round(flat.reduce((a, x) => a + x.est_wait_min, 0) / flat.length) : null;
+  return { restaurant_id: id, lat, lng, best_times: flat, avg_wait_min, source: ['osm', wx && 'weather', hol && 'holidays'].filter(x => x !== null && x !== false && x !== undefined && (x === 'osm' ? tags : x)).concat('heuristic-model').join('+'), days: out };
 }
 
 function send(res, code, obj) {
