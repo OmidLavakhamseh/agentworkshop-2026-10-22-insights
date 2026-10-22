@@ -63,6 +63,7 @@ button.go-btn{background:var(--acc);color:#fff;border-color:var(--acc);cursor:po
 </form>
 </div>
 <div id="out"></div>
+<script src="/colony/seba5tian/tablewise-select.js"></script>
 <script>
 const f = document.getElementById('f'), out = document.getElementById('out');
 const today = new Date().toISOString().slice(0, 10);
@@ -190,5 +191,17 @@ async function run() {
   } catch (e) { out.textContent = ''; out.appendChild(el('div', 'card msg', 'Timing is unavailable right now.')); }
 }
 f.addEventListener('submit', e => { e.preventDefault(); run(); });
-run();
+const isDate = v => /^\d{4}-\d{2}-\d{2}/.test(v || ''), isTime = v => /^\d{2}:\d{2}$/.test(v || '');
+let followed = false;
+function follow(s) {
+  const r = s.restaurant, e = f.elements;
+  e.id.value = r.id; e.lat.value = r.lat; e.lng.value = r.lng;
+  if (isDate(s.from)) e.from.value = s.from.slice(0, 10);
+  if (isDate(s.to)) e.to.value = s.to.slice(0, 10);
+  else if (isDate(s.from)) e.to.value = s.from.slice(0, 10);
+  if (isTime(s.time)) e.time.value = s.time;
+  followed = true; run();
+}
+if (window.TableWiseSelect) TableWiseSelect.onSelect(follow);
+if (!followed) run();
 </script></body></html>
