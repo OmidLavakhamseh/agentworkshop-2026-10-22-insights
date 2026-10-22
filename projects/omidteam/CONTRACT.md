@@ -28,6 +28,8 @@
 Also: `GET /t/omidteam/health`. Frontend widget: `/colony/omidteam/?id=...&from=...&to=...` (embeddable).
 
 Optional extras (all additive, failures fall back silently):
+- `days[].factors`: array of short strings explaining the estimate, e.g. "lunch peak 12-14", "weekend", "rain expected 17:00-19:00" (additive).
+- `GET /health` also reports `opening_hours_cache` {entries, last_lookup {ok, at}}; it never triggers external calls.
 - `hours[].rain_pct` (0-100, or null when no forecast): rain probability for that hour (additive field).
 - `time=HH:MM` (visit time): response gets `requested` {date, time, crowd, level, est_wait_minutes, open, verdict good|busy|closed, better_time} for the first day, else null.
 - Top-level `best_times` [{date, start, end, crowd, est_wait_min}] (one window per day) and `avg_wait_min`, for simple UIs. `max_wait_min` is accepted as an alias of `maxWaitMinutes`.
@@ -37,3 +39,14 @@ Optional extras (all additive, failures fall back silently):
 - `source` lists what was used, e.g. `osm+weather+holidays+heuristic-model`.
 
 Note: data is a heuristic model (meal peaks, weekday/weekend, per-restaurant bias), not real visitor data.
+
+## GET /t/omidteam/now (batch, for map pins)
+
+`/t/omidteam/now?ids=a,b,c[&time=HH:MM][&date=YYYY-MM-DD]` returns the crowd for up to 20 restaurants in one call
+(default: current hour in Europe/Stockholm, clamped to 08-23). Uses the heuristic model plus opening hours only if
+already cached by a /timing call, so it is fast but can differ slightly from /timing (no weather or holidays).
+
+```json
+{ "date": "2026-10-22", "hour": 14, "source": "heuristic-model (...)",
+  "results": [{ "id": "overture:abc", "crowd": 42, "level": "medium", "est_wait_minutes": 12, "open": true }] }
+```
