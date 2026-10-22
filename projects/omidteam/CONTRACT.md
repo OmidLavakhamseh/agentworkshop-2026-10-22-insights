@@ -37,3 +37,14 @@ Optional extras (all additive, failures fall back silently):
 - `source` lists what was used, e.g. `osm+weather+holidays+heuristic-model`.
 
 Note: data is a heuristic model (meal peaks, weekday/weekend, per-restaurant bias), not real visitor data.
+
+## GET /t/omidteam/now (batch, for map pins)
+
+`/t/omidteam/now?ids=a,b,c[&time=HH:MM][&date=YYYY-MM-DD]` returns the crowd for up to 20 restaurants in one call
+(default: current hour in Europe/Stockholm, clamped to 08-23). Uses the heuristic model plus opening hours only if
+already cached by a /timing call, so it is fast but can differ slightly from /timing (no weather or holidays).
+
+```json
+{ "date": "2026-10-22", "hour": 14, "source": "heuristic-model (...)",
+  "results": [{ "id": "overture:abc", "crowd": 42, "level": "medium", "est_wait_minutes": 12, "open": true }] }
+```

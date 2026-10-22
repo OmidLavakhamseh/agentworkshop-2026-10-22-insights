@@ -218,6 +218,21 @@ module.exports = {
       const r = compute(q, tags, wx, hol);
       return send(res, r.error ? 400 : 200, r), true;
     }
+    if (p === 'now') {
+      const ids = String(u.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 20);
+      if (!ids.length) return send(res, 400, { error: 'ids is required (comma separated, max 20)' }), true;
+      const now = new Date(), tz = { timeZone: 'Europe/Stockholm' };
+      const date = parseDate(u.searchParams.get('date')) ? u.searchParams.get('date') : now.toLocaleDateString('en-CA', tz);
+      const tm = /^(\d{1,2}):\d{2}$/.exec(u.searchParams.get('time') || '');
+      const hour = Math.min(23, Math.max(8, tm ? +tm[1] : +now.toLocaleTimeString('en-GB', Object.assign({ hour: '2-digit', hour12: false }, tz)) % 24));
+      const results = ids.map(id => {
+        const hit = tagCache.get(id);
+        const r = compute({ id, from: date, to: date }, hit && hit.tags, null, null);
+        const h = r.days[0].hours.find(x => x.hour === hour);
+        return { id, crowd: h.crowd, level: h.level, est_wait_minutes: h.est_wait_minutes, open: h.open };
+      });
+      return send(res, 200, { date, hour, source: 'heuristic-model (cached opening hours only; /timing adds weather and holidays)', results }), true;
+    }
     return false;
   },
 };

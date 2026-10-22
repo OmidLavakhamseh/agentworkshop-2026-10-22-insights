@@ -41,3 +41,12 @@ test('time param gives a verdict', async () => {
   const none = await call('/timing?id=t1&from=2026-10-23');
   assert.strictEqual(none.body.requested, null);
 });
+
+test('now: batch current crowd for several ids', async () => {
+  const r = await call('/now?ids=a,b,osm:node/1&time=12:00&date=2026-10-23');
+  assert.strictEqual(r.code, 200);
+  assert.strictEqual(r.body.results.length, 3);
+  assert.strictEqual(r.body.hour, 12);
+  assert.ok(r.body.results.every(x => x.id && x.crowd >= 0 && x.crowd <= 100 && x.level && x.open !== undefined));
+  assert.strictEqual((await call('/now')).code, 400);
+});
