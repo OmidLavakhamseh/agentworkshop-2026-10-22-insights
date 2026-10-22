@@ -112,9 +112,17 @@ function compute(q, tags) {
     const inMeal = h => meal === 'lunch' ? h >= 11 && h <= 15 : meal === 'dinner' ? h >= 17 && h <= 22 : (h >= 11 && h <= 15) || (h >= 17 && h <= 22);
     const cands = hours.filter(x => inMeal(x.hour) && x.open);
     const ok = cands.filter(x => x.est_wait_minutes <= maxWait);
-    const best = (ok.length ? ok : cands).slice().sort((a, b) => a.crowd - b.crowd).slice(0, 3)
-      .sort((a, b) => a.hour - b.hour)
-      .map(x => ({ time: String(x.hour).padStart(2, '0') + ':00', crowd: x.crowd, est_wait_minutes: x.est_wait_minutes }));
+    const pool = ok.length ? ok : cands;
+    // prefer the calmest run of up to 3 consecutive hours, so the guest gets a usable window
+    let pick = pool.slice().sort((a, b) => a.crowd - b.crowd).slice(0, 1);
+    let bestScore = Infinity;
+    for (let i = 0; i < pool.length; i++) {
+      const run = [pool[i]];
+      while (run.length < 3 && pool[i + run.length] && pool[i + run.length].hour === run[run.length - 1].hour + 1) run.push(pool[i + run.length]);
+      const score = run.reduce((a, x) => a + x.crowd, 0) / run.length + (3 - run.length) * 8;
+      if (score < bestScore) { bestScore = score; pick = run; }
+    }
+    const best = pick.map(x => ({ time: String(x.hour).padStart(2, '0') + ':00', crowd: x.crowd, est_wait_minutes: x.est_wait_minutes }));
     const busiest = hours.slice().sort((a, b) => b.crowd - a.crowd)[0];
     out.push({
       date: d.toISOString().slice(0, 10),
