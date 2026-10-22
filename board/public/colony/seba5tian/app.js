@@ -206,11 +206,22 @@
   function bbox(radiusM) {
     const dLat = radiusM / 111320;
     const dLng = radiusM / (111320 * Math.cos(here.lat * Math.PI / 180));
-    return [here.lng - dLng, here.lat + dLat, here.lng + dLng, here.lat - dLat].map((n) => n.toFixed(5)).join(',');
+    return [here.lng - dLng, here.lat + dLat, here.lng + dLng, here.lat - dLat].map((n) => n.toFixed(3)).join(',');
   }
 
-  async function nominatim(params) {
+  // Cache per rounded box for 10 minutes and share one in-flight run, so map interactions never fan out public calls.
+  const nomCache = new Map();
+  function nominatim(params) {
     const box = bbox((params.location && params.location.radius_m) || 1500);
+    const hit = nomCache.get(box);
+    if (hit && Date.now() - hit.at < 600000) return hit.promise;
+    const promise = nominatimRun(box);
+    nomCache.set(box, { at: Date.now(), promise });
+    promise.then((list) => { if (!list.length) nomCache.delete(box); });
+    return promise;
+  }
+
+  async function nominatimRun(box) {
     const found = [];
     for (const term of ['restaurant', 'restaurang']) {
       try {
@@ -342,35 +353,13 @@
     } catch (e) { unavailable('w-menu', e.message); }
   }
 
-  function embedReviews(b, q) {
-    if (!/^[A-Za-z0-9:_\/.-]+$/.test(String(q.id))) return;
+  function loadReviews(q) {
+    const b = body('w-reviews');
+    if (!/^[A-Za-z0-9:_\/.-]+$/.test(String(q.id))) { b.appendChild(el('div', 'No reviews found', 'muted')); return; }
     const f = document.createElement('iframe');
-    f.src = '/colony/gnik/?id=' + encodeURIComponent(q.id);
+    f.src = '/colony/gnik/?id=' + encodeURIComponent(q.id) + '&name=' + encodeURIComponent(q.name || '');
     f.className = 'embed';
-    f.loading = 'lazy';
     b.appendChild(f);
-  }
-
-  async function loadReviews(q) {
-    body('w-reviews').appendChild(el('div', 'Loading...', 'muted'));
-    try {
-      const d = await getJson(modules.reviews.path, q);
-      const b = body('w-reviews');
-      if ((d.suggested_meals || []).length) {
-        b.appendChild(el('strong', 'Suggested meals'));
-        const ul = el('ul');
-        d.suggested_meals.forEach((m) => ul.appendChild(el('li', (m.dish || m.name) + (m.mentions ? ' (' + m.mentions + ' mentions)' : '') + (m.reason ? ' - ' + m.reason : ''))));
-        b.appendChild(ul);
-      }
-      if ((d.red_flags || []).length) {
-        b.appendChild(el('strong', 'Red flags', 'flag'));
-        const ul = el('ul');
-        d.red_flags.forEach((f) => ul.appendChild(el('li', (f.type ? f.type + ': ' : '') + f.text, 'flag')));
-        b.appendChild(ul);
-      }
-      if (!b.children.length) b.appendChild(el('div', 'No review insights', 'muted'));
-      embedReviews(b, q);
-    } catch (e) { unavailable('w-reviews', e.message); }
   }
 
   async function loadTiming(q) {
