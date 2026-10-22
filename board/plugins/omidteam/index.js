@@ -48,15 +48,17 @@ async function osmTags(id) {
   const hit = tagCache.get(id);
   if (hit && Date.now() - hit.t < 3600e3) return hit.tags;
   let tags = null;
-  try {
-    const r = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'user-agent': 'tablewise-omidteam', 'content-type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent('[out:json][timeout:8];node(' + m[1] + ');out tags;'),
-      signal: AbortSignal.timeout(6000),
-    });
-    if (r.ok) { const j = await r.json(); tags = (j.elements && j.elements[0] && j.elements[0].tags) || {}; }
-  } catch (e) { console.error('[omidteam] overpass', e && e.message); }
+  for (const base of ['https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass-api.de/api/interpreter']) {
+    try {
+      const r = await fetch(base, {
+        method: 'POST',
+        headers: { 'user-agent': 'tablewise-omidteam/1.0', accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent('[out:json][timeout:8];node(' + m[1] + ');out tags;'),
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) { const j = await r.json(); tags = (j.elements && j.elements[0] && j.elements[0].tags) || {}; break; }
+    } catch (e) { console.error('[omidteam] overpass', e && e.message); }
+  }
   tagCache.set(id, { t: tags ? Date.now() : Date.now() - 3600e3 + 120e3, tags });
   return tags;
 }
