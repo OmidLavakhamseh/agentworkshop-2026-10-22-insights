@@ -50,3 +50,10 @@ test('now: batch current crowd for several ids', async () => {
   assert.ok(r.body.results.every(x => x.id && x.crowd >= 0 && x.crowd <= 100 && x.level && x.open !== undefined));
   assert.strictEqual((await call('/now')).code, 400);
 });
+
+test('days have factors and health reports cache state', async () => {
+  const r = await call('/timing?id=t2&from=2026-10-24&to=2026-10-24');
+  assert.ok(Array.isArray(r.body.days[0].factors) && r.body.days[0].factors.includes('weekend'));
+  const h = await call('/health');
+  assert.ok(h.body.ok && h.body.opening_hours_cache && typeof h.body.opening_hours_cache.entries === 'number');
+});
