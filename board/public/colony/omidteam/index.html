@@ -46,6 +46,30 @@ button.go-btn{background:var(--acc);color:#fff;border-color:var(--acc);cursor:po
 .heat{display:grid;gap:3px;margin-top:4px}
 .heat .row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut)}.heat .row em{width:80px;font-style:normal}
 .heat .cells{display:flex;gap:2px;flex:1}.heat .cells b{flex:1;height:12px;border-radius:3px;display:block}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(179,48,31,.5)}100%{box-shadow:0 0 0 9px rgba(179,48,31,0)}}
+@keyframes glow{0%,100%{outline-color:rgba(27,122,110,.35)}50%{outline-color:#1b7a6e}}
+@keyframes bob{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) translateY(-3px)}}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
+@keyframes sheen{from{background-position:-200px 0}to{background-position:200px 0}}
+@keyframes fadecell{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+#out:not(.still) .card{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+#out:not(.still) .card:nth-child(2){animation-delay:.12s}
+#out:not(.still) .card:nth-child(3){animation-delay:.24s}
+.hero .tile{animation:pop .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*110ms + 120ms);transition:transform .2s,box-shadow .2s}
+.hero .tile:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(0,0,0,.1)}
+.bar{transform-origin:bottom;animation:grow .7s cubic-bezier(.2,.9,.3,1.1) both;animation-delay:calc(var(--i,0)*30ms + 150ms)}
+.col:hover .bar{transform:scaleY(1.04);filter:brightness(1.12)}
+.col.best .bar{animation:grow .7s cubic-bezier(.2,.9,.3,1.1) both,glow 2s ease-in-out 1s infinite;animation-delay:calc(var(--i,0)*30ms + 150ms),0s}
+.col.me::after{animation:bob 1.6s ease-in-out infinite}
+.col.now::before{animation:blink 1.6s ease-in-out infinite}
+h1 i{animation:pulse 1.8s ease-out infinite}
+.heat .cells b{animation:fadecell .35s ease both;animation-delay:calc(var(--i,0)*14ms + var(--r,0)*60ms)}
+.skel{height:14px;border-radius:7px;margin:10px 0;background:linear-gradient(90deg,#eee 25%,#f8f8f6 37%,#eee 63%);background-size:400px 100%;animation:sheen 1.1s linear infinite}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style></head><body>
 <div class="card">
 <h1><i></i>Best time to visit</h1>
@@ -119,27 +143,28 @@ function tile(cls, small, big, sub) {
   const t = el('div', 'tile ' + cls); t.appendChild(el('small', '', small)); t.appendChild(el('b', '', big)); t.appendChild(el('span', '', sub)); return t;
 }
 
-function render() {
-  out.textContent = '';
+function heroAdd(h, t) { t.style.setProperty('--i', h.children.length); h.appendChild(t); }
+function render(again) {
+  out.textContent = ''; out.classList.toggle('still', !!again);
   const j = data, card = el('div', 'card');
   const slots = j.days.filter(d => d.best_times.length);
   const hero = el('div', 'hero');
   if (slots.length) {
     const b = slots.slice().sort((a, c) => a.best_times[0].est_wait_minutes - c.best_times[0].est_wait_minutes || a.date.localeCompare(c.date))[0];
-    hero.appendChild(tile('go', 'Go', win(b.best_times), dayName(b.date) + ', about ' + b.best_times[0].est_wait_minutes + ' min wait'));
-  } else hero.appendChild(tile('avoid', 'No open slot', 'Closed', 'Try other dates or meal'));
+    heroAdd(hero, tile('go', 'Go', win(b.best_times), dayName(b.date) + ', about ' + b.best_times[0].est_wait_minutes + ' min wait'));
+  } else heroAdd(hero, tile('avoid', 'No open slot', 'Closed', 'Try other dates or meal'));
   const worst = j.days.slice().sort((a, c) => c.busiest.crowd - a.busiest.crowd)[0];
-  if (worst && worst.busiest.crowd >= 55) hero.appendChild(tile('avoid', 'Avoid', worst.busiest.time, dayName(worst.date) + ', ' + worst.busiest.crowd + '% crowded'));
+  if (worst && worst.busiest.crowd >= 55) heroAdd(hero, tile('avoid', 'Avoid', worst.busiest.time, dayName(worst.date) + ', ' + worst.busiest.crowd + '% crowded'));
   if (j.requested) {
     const r = j.requested, label = { good: 'Good choice', busy: 'Busy then', closed: 'Closed then' }[r.verdict];
-    hero.appendChild(tile('you ' + r.verdict, 'Your time ' + r.time, label, r.verdict === 'good' ? 'about ' + r.est_wait_minutes + ' min wait' : (r.better_time ? 'try ' + r.better_time + ' instead' : 'no better slot')));
+    heroAdd(hero, tile('you ' + r.verdict, 'Your time ' + r.time, label, r.verdict === 'good' ? 'about ' + r.est_wait_minutes + ' min wait' : (r.better_time ? 'try ' + r.better_time + ' instead' : 'no better slot')));
   }
   card.appendChild(hero); out.appendChild(card);
 
   const c2 = el('div', 'card');
   if (j.days.length > 1) {
     const tabs = el('div', 'tabs');
-    j.days.forEach((d, i) => { const t = el('button', 'tab' + (i === sel ? ' on' : ''), dayName(d.date)); t.type = 'button'; t.onclick = () => { sel = i; render(); }; tabs.appendChild(t); });
+    j.days.forEach((d, i) => { const t = el('button', 'tab' + (i === sel ? ' on' : ''), dayName(d.date)); t.type = 'button'; t.onclick = () => { sel = i; render(true); }; tabs.appendChild(t); });
     c2.appendChild(tabs);
   }
   const d = j.days[sel], wrap = el('div', 'chartwrap'), grid = el('div', 'grid');
@@ -151,8 +176,8 @@ function render() {
   const nowH = d.date === today ? new Date().getHours() : null;
   for (const h of d.hours) {
     const col = el('div', 'col' + (bestHours.has(h.hour) ? ' best' : '') + (h.hour === myHour ? ' me' : '') + (h.hour === nowH ? ' now' : ''));
-    const bar = el('div', 'bar ' + (h.open === false ? 'closed' : h.level)); bar.style.height = Math.max(4, h.crowd * 1.5) + 'px';
-    col.appendChild(bar);
+    const bar = el('div', 'bar ' + (h.open === false ? 'closed' : h.level)); bar.style.height = Math.max(4, h.crowd * 1.5) + 'px'; bar.style.setProperty('--i', h.hour);
+    col.style.setProperty('--i', h.hour); col.appendChild(bar);
     col.onmouseenter = () => { read.textContent = pad(h.hour) + ':00  ' + (h.open === false ? 'closed' : h.crowd + '% crowded, about ' + h.est_wait_minutes + ' min wait'); };
     chart.appendChild(col); xl.appendChild(el('span', '', h.hour));
   }
@@ -169,7 +194,7 @@ function render() {
     const heat = el('div', 'heat');
     j.days.forEach(day => {
       const row = el('div', 'row'), cells = el('div', 'cells'); row.appendChild(el('em', '', dayName(day.date)));
-      day.hours.forEach(h => { const b = el('b', h.open === false ? 'closed' : h.level); b.title = pad(h.hour) + ':00 ' + h.crowd + '%'; cells.appendChild(b); });
+      day.hours.forEach(h => { const b = el('b', h.open === false ? 'closed' : h.level); b.style.setProperty('--i', h.hour); b.style.setProperty('--r', j.days.indexOf(day)); b.title = pad(h.hour) + ':00 ' + h.crowd + '%'; cells.appendChild(b); });
       row.appendChild(cells); heat.appendChild(row);
     });
     c3.appendChild(heat); out.appendChild(c3);
@@ -177,7 +202,7 @@ function render() {
 }
 
 async function run() {
-  out.textContent = ''; out.appendChild(el('div', 'card msg', 'Loading...'));
+  out.textContent = ''; out.classList.remove('still'); const sk = el('div', 'card'); for (const w of [40, 100, 85, 60]) { const k = el('div', 'skel'); k.style.width = w + '%'; sk.appendChild(k); } out.appendChild(sk);
   try {
     const p = new URLSearchParams(new FormData(f));
     for (const [k, v] of [...p]) if (v === '') p.delete(k);
