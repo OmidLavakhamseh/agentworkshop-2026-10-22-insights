@@ -425,6 +425,11 @@ function render(again) {
   c2.appendChild(el('div', 'src', 'Estimates, not live counts. Data: ' + j.source));
   out.appendChild(c2);
 
+  if (j.days.length === 1) {
+    const wk = el('button', 'tab wk', 'See the whole week'); wk.type = 'button'; wk.style.margin = '0 0 12px';
+    wk.onclick = () => { const t = new Date(j.days[0].date + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + 6); f.elements.to.value = t.toISOString().slice(0, 10); wk.textContent = 'Loading week...'; run(); };
+    out.appendChild(wk);
+  }
   if (j.days.length > 1) {
     const c3 = el('div', 'card heatcard'); c3.appendChild(el('div', 'src', 'All days at a glance'));
     const heat = el('div', 'heat');
