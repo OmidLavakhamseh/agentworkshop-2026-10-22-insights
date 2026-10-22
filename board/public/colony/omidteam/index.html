@@ -198,7 +198,7 @@ demo.addEventListener('change', () => {
 });
 document.getElementById('loc').addEventListener('click', () => {
   if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(p => { place.lat = p.coords.latitude; place.lng = p.coords.longitude; loadNearby(); }, () => {});
+  navigator.geolocation.getCurrentPosition(p => { place.lat = p.coords.latitude; place.lng = p.coords.longitude; gotPos = true; loadNearby(); if (data) render(true); }, () => {});
 });
 loadNearby();
 const svgEl = (t, a) => { const e = document.createElementNS('http://www.w3.org/2000/svg', t); for (const k in a) e.setAttribute(k, a[k]); return e; };
@@ -295,6 +295,22 @@ function startsIn(date, time) {
 }
 
 function people(level) { const n = { low: 1, medium: 3, high: 5 }[level] || 0, w = el('span', 'ppl'); w.appendChild(document.createTextNode('\u{1F464}'.repeat(n))); const r = el('s', '', '\u{1F464}'.repeat(5 - n)); w.appendChild(r); return w; }
+let gotPos = false;
+const walkCache = new Map();
+async function walkMinutes(la, ln) {
+  const k = [place.lat, place.lng, la, ln].join(',');
+  if (walkCache.has(k)) return walkCache.get(k);
+  const rad = x => x * Math.PI / 180, dLa = rad(la - place.lat), dLn = rad(ln - place.lng);
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(rad(place.lat)) * Math.cos(rad(la)) * Math.sin(dLn / 2) ** 2;
+  let m = 2 * 6371000 * Math.asin(Math.sqrt(a)) * 1.3;
+  try {
+    const r = await (await fetch('https://router.project-osrm.org/route/v1/foot/' + place.lng + ',' + place.lat + ';' + ln + ',' + la + '?overview=false', { signal: AbortSignal.timeout(5000) })).json();
+    if (r.code === 'Ok') m = r.routes[0].distance;
+  } catch (e) { /* straight-line estimate stays */ }
+  // OSRM demo "foot" durations are car speed, so time comes from distance at 1.35 m/s
+  const v = { min: Math.max(1, Math.round(m / 1.35 / 60)), km: m / 1000 };
+  walkCache.set(k, v); return v;
+}
 function heroAdd(h, t) { t.style.setProperty('--i', h.children.length); h.appendChild(t); }
 function render(again) {
   out.textContent = ''; out.classList.toggle('still', !!again);
@@ -330,6 +346,15 @@ function render(again) {
     const row = el('div', 'tabs copyrow'); row.style.marginTop = '10px'; row.appendChild(btn); row.appendChild(lk); card.appendChild(row);
   }
   out.appendChild(card);
+  if (gotPos && slots.length && f.elements.lat.value) {
+    const b1 = slots.slice().sort((a, c) => a.best_times[0].est_wait_minutes - c.best_times[0].est_wait_minutes || a.date.localeCompare(c.date))[0], lv = el('div', 'why');
+    card.appendChild(lv);
+    walkMinutes(+f.elements.lat.value, +f.elements.lng.value).then(w => {
+      const t0 = new Date(b1.date + 'T' + b1.best_times[0].time + ':00'), leave = new Date(t0 - w.min * 6e4);
+      lv.textContent = '';
+      [pad(leave.getHours()) + ':' + pad(leave.getMinutes()) + ' leave by', 'walk ' + w.min + ' min (' + w.km.toFixed(1) + ' km)'].forEach((t, i) => { const c = el('span', '', t); c.style.setProperty('--i', i); lv.appendChild(c); });
+    });
+  }
 
   const c2 = el('div', 'card');
   if (j.days.length > 1) {
